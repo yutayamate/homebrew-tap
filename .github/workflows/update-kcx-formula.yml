@@ -1,0 +1,79 @@
+name: Update kcx formula
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-kcx-formula
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Update formula to latest stable release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          latest_tag="$(curl --fail --silent --show-error \
+            -H 'Accept: application/vnd.github+json' \
+            https://api.github.com/repos/yutayamate/kcx/releases/latest | jq -er '.tag_name')"
+          if [[ ! "$latest_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected kcx release tag: $latest_tag" >&2
+            exit 1
+          fi
+
+          formula=Formula/kcx.rb
+          current_tag="$(sed -nE 's/^[[:space:]]*tag:[[:space:]]*"([^"]+)".*/\1/p' "$formula")"
+          if [[ "$latest_tag" == "$current_tag" ]]; then
+            echo "Formula is already at $latest_tag"
+            exit 0
+          fi
+
+          repository=https://github.com/yutayamate/kcx.git
+          revision="$(git ls-remote "$repository" "refs/tags/${latest_tag}^{}" | awk 'NR == 1 { print $1 }')"
+          if [[ -z "$revision" ]]; then
+            revision="$(git ls-remote "$repository" "refs/tags/$latest_tag" | awk 'NR == 1 { print $1 }')"
+          fi
+          if [[ ! "$revision" =~ ^[[:xdigit:]]{40}$ ]]; then
+            echo "Could not resolve commit for $latest_tag" >&2
+            exit 1
+          fi
+
+          LATEST_TAG="$latest_tag" REVISION="$revision" python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path("Formula/kcx.rb")
+          content = path.read_text()
+          pattern = re.compile(
+              r'(?m)^  url "https://github\\.com/yutayamate/kcx\\.git",$'
+              r'\n      tag:      "[^"]+",$'
+              r'\n      revision: "[0-9a-f]{40}"$'
+          )
+          replacement = (
+              '  url "https://github.com/yutayamate/kcx.git",\n'
+              f'      tag:      "{os.environ["LATEST_TAG"]}",\n'
+              f'      revision: "{os.environ["REVISION"]}"'
+          )
+          updated, count = pattern.subn(replacement, content)
+          if count != 1:
+              raise SystemExit(f"Expected one formula source block, found {count}")
+          path.write_text(updated)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$formula"
+          git commit -m "kcx ${latest_tag#v}"
+          git push
