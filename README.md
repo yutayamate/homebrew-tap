@@ -1,6 +1,6 @@
 # homebrew-tap
 
-A Homebrew tap for command-line tools. It can host formulae for multiple tools, each with its own source, build requirements, and release update process. Maintained by Yuta Yamate.
+A Homebrew tap for command-line tools maintained by yutayamate.
 
 ## Add the tap
 
