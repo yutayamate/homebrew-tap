@@ -57,7 +57,7 @@ jobs:
           path = Path("Formula/kcx.rb")
           content = path.read_text()
           pattern = re.compile(
-              r'(?m)^  url "https://github\\.com/yutayamate/kcx\\.git",$'
+              r'(?m)^  url "https://github[.]com/yutayamate/kcx[.]git",$'
               r'\n      tag:      "[^"]+",$'
               r'\n      revision: "[0-9a-f]{40}"$'
           )
