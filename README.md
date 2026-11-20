@@ -4,10 +4,8 @@ This tap contains the `kcx` formula.
 
 ## Install
 
-Because this repository is named `tap` rather than `homebrew-tap`, provide the repository URL when adding the tap:
-
 ```sh
-brew tap yutayamate/tap https://github.com/yutayamate/tap.git
+brew tap yutayamate/tap
 brew install yutayamate/tap/kcx
 ```
 
